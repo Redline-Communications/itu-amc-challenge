@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """ternary.py: Ternary VGG evaluation in PyTorch"""
 
@@ -10,12 +10,13 @@ import torch
 import torch.nn as nn
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 import h5py
 import ternary
 
-dataset_path = '/home/armand/itu-amc/2018.01/GOLD_XYZ_OSC.0001_1024.hdf5'
+dataset_path = '/home/ssadmin/GOLD_XYZ_OSC.0001_1024.hdf5'
+
 gpu = 0
 if torch.cuda.is_available():
     torch.cuda.device(gpu)
@@ -123,6 +124,9 @@ def display_loss_plot(losses, title="Training loss", xlabel="Iterations", ylabel
 dataset = radioml_18_dataset(dataset_path)
 
 model = ternary.VGG10()
+#model = ternary.TernaryVGG10()
+
+print(model)
 
 batch_size = 1024
 num_epochs = 20

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """ternary.py: Ternary VGG implementation for PyTorch"""
 
@@ -15,9 +15,11 @@ def Ternarize(v : torch.Tensor, nu = 0.7):
     '''
     Ternerize
     '''
+    use_cuda = torch.cuda.is_available()
+    device = torch.device("cuda:0" if use_cuda else "cpu")
     thres = nu * torch.mean(torch.abs(v))
-    ge = torch.ge(v, thres).type(torch.FloatTensor)
-    le = torch.le(v, -thres).type(torch.FloatTensor)
+    ge = torch.ge(v, thres).type(torch.FloatTensor).to(torch.device(device))
+    le = torch.le(v, -thres).type(torch.FloatTensor).to(torch.device(device))
     unmasked = torch.multiply(ge + le, v)
     eta = torch.mean(unmasked)
     ret = torch.multiply(le, -eta)
@@ -82,7 +84,7 @@ class TernaryConv2d(nn.Conv2d):
 
 class TernaryVGG(nn.Module):
     '''
-     Ternary Visual Geometry Group (VGG)
+     1D Ternary Visual Geometry Group (VGG)
     '''
 
     def __init__(self, features, num_classes=24, init_weights=True):
@@ -106,14 +108,51 @@ class TernaryVGG(nn.Module):
 
     def _initialize_weights(self):
         for m in self.modules():
-            if isinstance(m, nn.Conv2d):
+            if isinstance(m, TernaryConv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):
+            elif isinstance(m, TernaryLinear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                nn.init.constant_(m.bias, 0)
+
+class VGG(nn.Module):
+    '''
+     1D Visual Geometry Group (VGG)
+    '''
+
+    def __init__(self, features, num_classes=24, init_weights=True):
+        super(VGG, self).__init__()
+        self.features = features
+        self.classifier = nn.Sequential(
+            nn.Linear(64 * 8, 128),
+            nn.ReLU(True),
+            nn.Linear(128, 128),
+            nn.ReLU(True),
+            nn.Linear(128, num_classes),
+        )
+        if init_weights:
+            self._initialize_weights()
+
+    def forward(self, x):
+        x = self.features(x)
+        x = torch.flatten(x, 1)
+        x = self.classifier(x)
+        return x
+
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, TernaryConv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, TernaryLinear):
                 nn.init.normal_(m.weight, 0, 0.01)
                 nn.init.constant_(m.bias, 0)
 
@@ -145,27 +184,27 @@ def make_layers(cfg: List[Union[str, int]], batch_norm: bool = False, ternary : 
     return nn.Sequential(*layers)
 
 
-cfgs: Dict[str, List[Union[str, int]]] = {
+vgg_configs: Dict[str, List[Union[str, int]]] = {
     'VGG10': [64, 'M', 64, 'M', 64, 'M', 64, 'M', 64, 'M', 64, 'M', 64, 'M'],
 }
 
-def _vgg(arch: str, cfg: str, batch_norm: bool, **kwargs: Any) -> models.VGG:
+def _vgg(arch: str, cfg: str, batch_norm: bool, **kwargs: Any):
 
     if kwargs.pop('ternary', False):
-        model = models.VGG(make_layers(cfgs[cfg], batch_norm=batch_norm, srelu=kwargs.pop('srelu', False)), **kwargs)
+        model = TernaryVGG(make_layers(vgg_configs[cfg], batch_norm=batch_norm, ternary=True, srelu=kwargs.pop('srelu', False)), **kwargs)
     else:
-        model = TernaryVGG(make_layers(cfgs[cfg], batch_norm=batch_norm, srelu=kwargs.pop('srelu', False)), **kwargs)
+        model = VGG(make_layers(vgg_configs[cfg], batch_norm=batch_norm, srelu=kwargs.pop('srelu', False)), **kwargs)
 
     return model
 
 
-def VGG10(**kwargs: Any) -> models.VGG:
+def VGG10(**kwargs: Any) -> VGG:
     '''
     VGG 10-layer model (configuration "VGG10") from
     '''
     return _vgg('VGG10', 'VGG10', batch_norm=True, **kwargs)
 
-def TernaryVGG10(**kwargs: Any) -> models.VGG:
+def TernaryVGG10(**kwargs: Any) -> TernaryVGG:
     '''
     TernaryVGG 10-layer model (configuration "VGG10") from
     '''
