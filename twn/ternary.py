@@ -18,13 +18,11 @@ def Ternarize(v : torch.Tensor, nu = 0.7):
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda:0" if use_cuda else "cpu")
     thres = nu * torch.mean(torch.abs(v))
+    #thres = nu * v.abs().max()
     ge = torch.ge(v, thres).type(torch.FloatTensor).to(torch.device(device))
     le = torch.le(v, -thres).type(torch.FloatTensor).to(torch.device(device))
-    unmasked = torch.multiply(ge + le, v)
-    eta = torch.mean(unmasked)
-    ret = torch.multiply(le, -eta)
-    ret = ret + torch.multiply(ge, eta)
-    return ret + (ret - v).detach()
+
+    return (ge - le)
 
 def Quantize(v : torch.Tensor, k : int):
     '''
