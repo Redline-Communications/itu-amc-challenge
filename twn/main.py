@@ -123,8 +123,8 @@ def display_loss_plot(losses, title="Training loss", xlabel="Iterations", ylabel
 
 dataset = radioml_18_dataset(dataset_path)
 
-model = ternary.VGG10()
-#model = ternary.TernaryVGG10()
+#model = ternary.VGG10()
+model = ternary.TernaryVGG10()
 
 print(model)
 

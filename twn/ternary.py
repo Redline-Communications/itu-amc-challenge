@@ -64,10 +64,11 @@ class TernaryLinear(nn.Linear):
 
 class TernaryConv1d(nn.Conv1d):
     def __init__(self,*args,**kwargs):
+        self.nu = kwargs.pop('nu', 0.7)
         super(TernaryConv1d,self).__init__(*args,**kwargs)
 
     def forward(self,input):
-        self.weight.data = Ternarize(self.weight.data)
+        self.weight.data = Ternarize(self.weight.data, self.nu)
         out = F.conv1d(input, self.weight, self.bias, self.stride,self.padding, self.dilation, self.groups)
         return out
 
@@ -94,6 +95,7 @@ class TernaryVGG(nn.Module):
             TernaryLinear(128, 128),
             nn.ReLU(True),
             nn.Linear(128, num_classes),
+            nn.Softmax(1)
         )
         if init_weights:
             self._initialize_weights()
@@ -111,6 +113,9 @@ class TernaryVGG(nn.Module):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm1d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
             elif isinstance(m, TernaryLinear):
@@ -147,7 +152,14 @@ class VGG(nn.Module):
                 nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
+            if isinstance(m, TernaryConv1d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm1d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
             elif isinstance(m, TernaryLinear):
@@ -157,13 +169,16 @@ class VGG(nn.Module):
 def make_layers(cfg: List[Union[str, int]], batch_norm: bool = False, ternary : bool = False, srelu : bool = False) -> nn.Sequential:
     layers: List[nn.Module] = []
     in_channels = 2
-    for v in cfg:
+    for indx,v in enumerate(cfg):
         if v == 'M':
             layers += [nn.MaxPool1d(kernel_size=2, stride=2)]
         else:
             v = cast(int, v)
             if ternary:
-                conv1d = TernaryConv1d(in_channels, v, kernel_size=3, padding=1, bias=False)
+                nu = 0.7
+                if indx == 0:
+                    nu = 1.2
+                conv1d = TernaryConv1d(in_channels, v, nu=nu, kernel_size=3, padding=1, bias=False)
             else:
                 conv1d = nn.Conv1d(in_channels, v, kernel_size=3, padding=1, bias=False)
 
