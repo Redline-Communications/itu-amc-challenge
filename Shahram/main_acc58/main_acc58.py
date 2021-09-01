@@ -231,7 +231,7 @@ def display_loss_plot(losses, title="Training loss", xlabel="Iterations", ylabel
 
 
 batch_size = 2048
-num_epochs = 100
+num_epochs = 150
 
 torch.backends.cudnn.benchmark = True
 torch.autograd.set_detect_anomaly(False)
@@ -249,13 +249,17 @@ criterion = nn.CrossEntropyLoss()
 if gpu is not None:
     criterion = criterion.cuda()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+swa_model = torch.optim.swa_utils.AveragedModel(model)
+swa_scheduler = torch.optim.swa_utils.SWALR(optimizer, swa_lr=0.001)
 # optimizer = torch.optim.SGD(model.parameters(), lr=0.0005)
-lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=1)
-# lr_scheduler =torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[10, 17], gamma=0.1)
+# lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=1)
+# lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=15, T_mult=1,eta_min=0.0001)
+# lr_scheduler =torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 45], gamma=0.1)
+lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs)
 
 running_loss = []
 running_test_acc = []
-
+switch_scheduler=False
 for epoch in tqdm(range(num_epochs), desc="Epochs"):
         loss_epoch = train(model, data_loader_train, optimizer, criterion)
         test_acc = test(model, data_loader_test)
@@ -263,7 +267,13 @@ for epoch in tqdm(range(num_epochs), desc="Epochs"):
         # print("Epoch %d: Training loss = %f" %(epoch, np.mean(loss_epoch)))
         running_loss.append(loss_epoch)
         running_test_acc.append(test_acc)
-        lr_scheduler.step()
+        
+        if test_acc > 0.58 or switch_scheduler:
+            switch_scheduler =True
+            swa_model.update_parameters(model)
+            swa_scheduler.step()
+        else:
+            lr_scheduler.step()
 
 # test_acc = test(model, data_loader_test)
 # print("Epoch %d: Training loss = %f, test accuracy = %f" % (epoch, np.mean(loss_epoch), test_acc))
@@ -477,4 +487,5 @@ with torch.no_grad():
 # print("Normalized inference cost score: %f" % score)
 
 
-(self, iÑÆ
+
+
