@@ -268,7 +268,7 @@ for epoch in tqdm(range(num_epochs), desc="Epochs"):
         running_loss.append(loss_epoch)
         running_test_acc.append(test_acc)
         
-        if test_acc > 0.58 or switch_scheduler:
+        if epoch > 100 or switch_scheduler:
             switch_scheduler =True
             swa_model.update_parameters(model)
             swa_scheduler.step()
@@ -488,4 +488,4 @@ with torch.no_grad():
 
 
 
-
+
