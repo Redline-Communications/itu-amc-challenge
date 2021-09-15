@@ -1,0 +1,11 @@
+{
+  "discount_sparsity": true,
+  "mem_o_FLOAT32": 65112.0,
+  "mem_w_SCALEDINT8": 28034.0,
+  "op_mac_SCALEDINT8_SCALEDINT8": 196608.0,
+  "op_mac_SCALEDUINT8_SCALEDINT8": 3049063.0,
+  "total_bops": 207722944.0,
+  "total_mem_o_bits": 2083584.0,
+  "total_mem_w_bits": 224272.0,
+  "unsupported": "set()"
+}
