@@ -36,7 +36,7 @@ else:
 
 # Check if dataset is present
 
-dataset_path = "/mnt/datasets/RadioML/2018.01/GOLD_XYZ_OSC.0001_1024.hdf5"
+dataset_path = "/home/ssadmin/GOLD_XYZ_OSC.0001_1024.hdf5"
 os.path.isfile(dataset_path)
 
 
@@ -66,19 +66,19 @@ class radioml_18_dataset(Dataset):
                 # 'X' holds frames strictly ordered by modulation and SNR
                 start_idx = 26*4096*mod + 4096*snr_idx
                 indices_subclass = list(range(start_idx, start_idx+4096))
-
+                
                 # 90%/10% training/test split, applied evenly for each mod-SNR pair
-                split = int(np.ceil(0.1 * 4096))
+                split = int(np.ceil(0.1 * 4096)) 
                 np.random.shuffle(indices_subclass)
                 train_indices_subclass = indices_subclass[split:]
                 test_indices_subclass = indices_subclass[:split]
-
+                
                 # you could train on a subset of the data, e.g. based on the SNR
                 # here we use all available training samples
                 if snr_idx >= 0:
                     train_indices.extend(train_indices_subclass)
                 test_indices.extend(test_indices_subclass)
-
+                
         self.train_sampler = torch.utils.data.SubsetRandomSampler(train_indices)
         self.test_sampler = torch.utils.data.SubsetRandomSampler(test_indices)
 
@@ -98,8 +98,8 @@ dataset = radioml_18_dataset(dataset_path)
 input_bits = 8
 a_bits = 8
 w_bits = 8
-filters_conv = 32
-filters_dense = 32
+filters_conv = 32 #64
+filters_dense = 32 #128
 
 # Setting seeds for reproducibility
 torch.manual_seed(0)
@@ -114,7 +114,7 @@ class InputQuantizer(Int8ActPerTensorFloatMinMaxInit):
 model = nn.Sequential(
     # Input quantization layer
     qnn.QuantHardTanh(act_quant=InputQuantizer),
-
+    
     qnn.QuantConv1d(2, filters_conv, 3, padding=1, weight_bit_width=w_bits, bias=False),
     nn.BatchNorm1d(filters_conv),
     qnn.QuantReLU(bit_width=a_bits),
@@ -145,24 +145,87 @@ model = nn.Sequential(
     qnn.QuantReLU(bit_width=a_bits),
     nn.MaxPool1d(2),
 
+    
     qnn.QuantConv1d(filters_conv, filters_conv, 3, padding=1, weight_bit_width=w_bits, bias=False),
     nn.BatchNorm1d(filters_conv),
     qnn.QuantReLU(bit_width=a_bits),
     nn.MaxPool1d(2),
-
+    
     nn.Flatten(),
+
 
     qnn.QuantLinear(filters_conv*8, filters_dense, weight_bit_width=w_bits, bias=False),
     nn.BatchNorm1d(filters_dense),
     qnn.QuantReLU(bit_width=a_bits),
 
+    # nn.Dropout(0.2),
     qnn.QuantLinear(filters_dense, filters_dense, weight_bit_width=w_bits, bias=False),
     nn.BatchNorm1d(filters_dense),
     qnn.QuantReLU(bit_width=a_bits, return_quant_tensor=True),
-
+    
     qnn.QuantLinear(filters_dense, 24, weight_bit_width=w_bits, bias=True, bias_quant=IntBias),
 )
 
+class InputQuantizer2(Int8ActPerTensorFloatMinMaxInit):
+    bit_width = input_bits
+    min_val = -2.0
+    max_val = 2.0
+    scaling_impl_type = ScalingImplType.CONST # Fix the quantization range to [min_val, max_val]
+
+model = nn.Sequential(
+    # Input quantization layer
+    qnn.QuantHardTanh(act_quant=InputQuantizer),
+    
+    qnn.QuantConv1d(2, filters_conv, 3, padding=1, weight_bit_width=w_bits, bias=False),
+    nn.BatchNorm1d(filters_conv),
+    qnn.QuantReLU(bit_width=a_bits),
+    nn.MaxPool1d(2),
+
+    qnn.QuantConv1d(filters_conv, filters_conv, 3, padding=1, weight_bit_width=w_bits, bias=False),
+    nn.BatchNorm1d(filters_conv),
+    qnn.QuantReLU(bit_width=a_bits),
+    nn.MaxPool1d(2),
+
+    qnn.QuantConv1d(filters_conv, filters_conv, 3, padding=1, weight_bit_width=w_bits, bias=False),
+    nn.BatchNorm1d(filters_conv),
+    qnn.QuantReLU(bit_width=a_bits),
+    nn.MaxPool1d(2),
+
+    qnn.QuantConv1d(filters_conv, filters_conv, 3, padding=1, weight_bit_width=w_bits,bias=False),
+    nn.BatchNorm1d(filters_conv),
+    qnn.QuantReLU(bit_width=a_bits),
+    nn.MaxPool1d(2),
+
+    qnn.QuantConv1d(filters_conv, filters_conv, 3, padding=1, weight_bit_width=w_bits, bias=False),
+    nn.BatchNorm1d(filters_conv),
+    qnn.QuantReLU(bit_width=a_bits),
+    nn.MaxPool1d(2),
+
+    qnn.QuantConv1d(filters_conv, filters_conv, 3, padding=1, weight_bit_width=w_bits, bias=False),
+    nn.BatchNorm1d(filters_conv),
+    qnn.QuantReLU(bit_width=a_bits),
+    nn.MaxPool1d(2),
+
+    
+    qnn.QuantConv1d(filters_conv, filters_conv, 3, padding=1, weight_bit_width=w_bits, bias=False),
+    nn.BatchNorm1d(filters_conv),
+    qnn.QuantReLU(bit_width=a_bits),
+    nn.MaxPool1d(2),
+    
+    nn.Flatten(),
+
+
+    qnn.QuantLinear(filters_conv*8, filters_dense, weight_bit_width=w_bits, bias=False),
+    nn.BatchNorm1d(filters_dense),
+    qnn.QuantReLU(bit_width=a_bits),
+
+    # nn.Dropout(0.2),
+    qnn.QuantLinear(filters_dense, filters_dense, weight_bit_width=w_bits, bias=False),
+    nn.BatchNorm1d(filters_dense),
+    qnn.QuantReLU(bit_width=a_bits, return_quant_tensor=True),
+    
+    qnn.QuantLinear(filters_dense, 24, weight_bit_width=w_bits, bias=True, bias_quant=IntBias),
+)
 
 
 
@@ -171,39 +234,39 @@ from sklearn.metrics import accuracy_score
 def train(model, train_loader, optimizer, criterion):
     losses = []
     # ensure model is in training mode
-    model.train()
+    model.train()    
 #     scaler = GradScaler()
-    for (inputs, target, snr) in tqdm(train_loader, desc="Batches", leave=False):
+    for (inputs, target, snr) in tqdm(train_loader, desc="Batches", leave=False):   
         if gpu is not None:
             inputs = inputs.cuda()
             target = target.cuda()
-
+                
         # forward pass
         output = model(inputs)
         loss = criterion(output, target)
-
+        
         # backward pass + run optimizer to update weights
         for param in model.parameters():
             param.grad = None
-#         optimizer.zero_grad()
+#         optimizer.zero_grad() 
         loss.backward()
         optimizer.step()
-
+        
         # keep track of loss value
         losses.append(loss.cpu().detach().numpy())
-
+        
 #         scaler.scale(loss).backward()
 #         scaler.step(optimizer)
 #         scaler.update()
-
+           
     return losses
 
-def test(model, test_loader):
+def test(model, test_loader):    
     # ensure model is in eval mode
-    model.eval()
+    model.eval() 
     y_true = []
     y_pred = []
-
+   
     with torch.no_grad():
         for (inputs, target, snr) in test_loader:
             if gpu is not None:
@@ -211,9 +274,9 @@ def test(model, test_loader):
                 target = target.cuda()
             output = model(inputs)
             pred = output.argmax(dim=1, keepdim=True)
-            y_true.extend(target.tolist())
+            y_true.extend(target.tolist()) 
             y_pred.extend(pred.reshape(-1).tolist())
-
+        
     return accuracy_score(y_true, y_pred)
 
 def display_loss_plot(losses, title="Training loss", xlabel="Iterations", ylabel="Loss"):
@@ -227,8 +290,8 @@ def display_loss_plot(losses, title="Training loss", xlabel="Iterations", ylabel
 
 
 
-batch_size = 1024
-num_epochs = 30
+batch_size = 2048
+num_epochs = 150
 
 torch.backends.cudnn.benchmark = True
 torch.autograd.set_detect_anomaly(False)
@@ -246,22 +309,34 @@ criterion = nn.CrossEntropyLoss()
 if gpu is not None:
     criterion = criterion.cuda()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+swa_model = torch.optim.swa_utils.AveragedModel(model)
+swa_scheduler = torch.optim.swa_utils.SWALR(optimizer, swa_lr=0.001)
 # optimizer = torch.optim.SGD(model.parameters(), lr=0.0005)
 # lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=1)
-lr_scheduler =torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[10, 17], gamma=0.1)
+# lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=15, T_mult=1,eta_min=0.0001)
+# lr_scheduler =torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 45], gamma=0.1)
+lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs)
 
 running_loss = []
 running_test_acc = []
-
+switch_scheduler=False
 for epoch in tqdm(range(num_epochs), desc="Epochs"):
         loss_epoch = train(model, data_loader_train, optimizer, criterion)
         test_acc = test(model, data_loader_test)
         print("Epoch %d: Training loss = %f, test accuracy = %f" % (epoch, np.mean(loss_epoch), test_acc))
+        # print("Epoch %d: Training loss = %f" %(epoch, np.mean(loss_epoch)))
         running_loss.append(loss_epoch)
         running_test_acc.append(test_acc)
-        lr_scheduler.step()
+        
+        if epoch > 100 or switch_scheduler:
+            switch_scheduler =True
+            swa_model.update_parameters(model)
+            swa_scheduler.step()
+        else:
+            lr_scheduler.step()
 
-
+# test_acc = test(model, data_loader_test)
+# print("Epoch %d: Training loss = %f, test accuracy = %f" % (epoch, np.mean(loss_epoch), test_acc))
 # Plot training loss over epochs
 loss_per_epoch = [np.mean(loss_per_epoch) for loss_per_epoch in running_loss]
 display_loss_plot(loss_per_epoch)
@@ -351,7 +426,7 @@ with torch.no_grad():
 #     indices_snr = (y_snr == snr).nonzero()
 #     y_exp_i = y_exp[indices_snr]
 #     y_pred_i = y_pred[indices_snr]
-
+ 
 #     conf = np.zeros([len(dataset.mod_classes),len(dataset.mod_classes)])
 #     confnorm = np.zeros([len(dataset.mod_classes),len(dataset.mod_classes)])
 #     for i in range(len(y_exp_i)):
@@ -360,12 +435,12 @@ with torch.no_grad():
 #         conf[j,k] = conf[j,k] + 1
 #     for i in range(0,len(dataset.mod_classes)):
 #         confnorm[i,:] = conf[i,:] / np.sum(conf[i,:])
-
+ 
 #     if snr in snr_to_plot:
 #         plot, = np.where(snr_to_plot == snr)[0]
 #         plt.subplot(221+plot)
 #         plot_confusion_matrix(confnorm, labels=dataset.mod_classes, title="Confusion Matrix @ %d dB"%(snr))
-
+ 
 #     cor = np.sum(np.diag(conf))
 #     ncor = np.sum(conf) - cor
 #     acc.append(cor/(cor+ncor))
@@ -396,7 +471,7 @@ with torch.no_grad():
 #         y_pred_i = y_pred[indices]
 #         cor = np.count_nonzero(y_exp_i == np.argmax(y_pred_i, axis=1))
 #         accs[mod].append(cor/len(y_exp_i))
-
+        
 # # Plot accuracy-over-SNR curve
 # plt.figure(figsize=(12,8))
 # for mod in range(24):
@@ -415,29 +490,29 @@ with torch.no_grad():
 
 
 # # # Evaluate the Inference Cost <a id='evaluate_inference_cost'></a>
-# #
+# # 
 # # First, we have to export the model to Brevita's quantized variant of the ONNX interchange format. **All submissions must correctly pass through this export flow and provide the resulting .onnx file**. Any `TracerWarning` can be safely ignored.
 
 
-export_onnx_path = "models/model_export.onnx"
-final_onnx_path = "models/model_final.onnx"
-cost_dict_path = "models/model_cost.json"
+# export_onnx_path = "models/model_export.onnx"
+# final_onnx_path = "models/model_final.onnx"
+# cost_dict_path = "models/model_cost.json"
 
-BrevitasONNXManager.export(model.cpu(), input_t=torch.randn(1, 2, 1024), export_path=export_onnx_path);
+# BrevitasONNXManager.export(model.cpu(), input_t=torch.randn(1, 2, 1024), export_path=export_onnx_path);
 
 
 # # Now we use our analysis tool, which is part of [finn-base](https://github.com/Xilinx/finn-base), to determine the inference cost. It reports the number of output activation variables (`mem_o`), weight parameters (`mem_w`), and multiply-accumulate operations (`op_mac`) for each data type. These are used to calculate the total number of activation bits, weight bits, and bit-operations (BOPS).
-# #
+# # 
 # # If the report shows any unsupported operations, for instance because you implemented custom layers, you should check with the rules on the problem statement [website](http://bit.ly/brevitas-radioml-challenge-21) and consider to contact the organizers.
 
 # # In[33]:
 
 
-from finn.util.inference_cost import inference_cost
-import json
+# from finn.util.inference_cost import inference_cost
+# import json
 
-inference_cost(export_onnx_path, output_json=cost_dict_path, output_onnx=final_onnx_path,
-               preprocess=True, discount_sparsity=True)
+# inference_cost(export_onnx_path, output_json=cost_dict_path, output_onnx=final_onnx_path,
+#                preprocess=True, discount_sparsity=True)
 
 
 # # The call to `??nference_cost()` cleans up the model by inferring shapes and datatypes, folding constants, etc. We visualize the pre-processed ONNX model using [Netron](https://netron.app/).
@@ -459,15 +534,18 @@ inference_cost(export_onnx_path, output_json=cost_dict_path, output_onnx=final_o
 # # Finally, we compute the inference cost score, normalized to the baseline 8-bit VGG10 defined in this notebook. **Submissions will be judged based on this score.**
 
 
-with open(cost_dict_path, 'r') as f:
-    inference_cost_dict = json.load(f)
+# with open(cost_dict_path, 'r') as f:
+#     inference_cost_dict = json.load(f)
 
-bops = int(inference_cost_dict["total_bops"])
-w_bits = int(inference_cost_dict["total_mem_w_bits"])
+# bops = int(inference_cost_dict["total_bops"])
+# w_bits = int(inference_cost_dict["total_mem_w_bits"])
 
-bops_baseline = 807699904
-w_bits_baseline = 1244936
+# bops_baseline = 807699904
+# w_bits_baseline = 1244936
 
-score = 0.5*(bops/bops_baseline) + 0.5*(w_bits/w_bits_baseline)
-print("Normalized inference cost score: %f" % score)
+# score = 0.5*(bops/bops_baseline) + 0.5*(w_bits/w_bits_baseline)
+# print("Normalized inference cost score: %f" % score)
 
+
+
+
