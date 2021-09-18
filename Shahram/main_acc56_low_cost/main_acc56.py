@@ -95,11 +95,11 @@ dataset = radioml_18_dataset(dataset_path)
 
 
 # Adjustable hyperparameters
-input_bits = 6
-a_bits = 6
-w_bits = 6
-filters_conv = 32
-filters_dense = 32
+input_bits = 5
+a_bits = 5
+w_bits = 5
+filters_conv = 26
+filters_dense = 26
 
 # Setting seeds for reproducibility
 torch.manual_seed(0)
@@ -230,8 +230,8 @@ def display_loss_plot(losses, title="Training loss", xlabel="Iterations", ylabel
 
 
 
-batch_size = 4096
-num_epochs = 50
+batch_size = 2048
+num_epochs = 150
 
 torch.backends.cudnn.benchmark = True
 torch.autograd.set_detect_anomaly(False)
@@ -268,7 +268,7 @@ for epoch in tqdm(range(num_epochs), desc="Epochs"):
         running_loss.append(loss_epoch)
         running_test_acc.append(test_acc)
         
-        if epoch > 40 or switch_scheduler:
+        if epoch > 100 or switch_scheduler:
             switch_scheduler =True
             swa_model.update_parameters(model)
             swa_scheduler.step()
