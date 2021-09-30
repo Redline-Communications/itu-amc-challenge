@@ -9,9 +9,19 @@ import os.path
 import time
 from torch import nn
 import os
+import brevitas.nn as qnn
 
 from radioml import radioml_18_dataset
 from model import model as model
+from torch.nn.utils import prune
+
+def prune_snr(model, snr):
+    # increase pruning linearly between 0 and 0.5 as a function of SNR
+    alpha = 0.01 * snr + 0.2
+    for name, module in model.named_modules():
+        if isinstance(module, qnn.QuantConv1d):
+            prune.l1_unstructured(module, name='weight', amount=alpha)
+    return model
 
 start_time = time.time()
 
@@ -39,12 +49,18 @@ from sklearn.metrics import accuracy_score
 
 def train(model, train_loader, optimizer, criterion):
     losses = []
-    model.train()    
+    model.train()
+    prev_snr = -100
     for (inputs, target, snr) in tqdm(train_loader, desc="Batches", leave=False):   
         if gpu is not None:
             inputs = inputs.cuda()
             target = target.cuda()
-                
+
+        if snr != prev_snr:
+            # cascading pruning stages
+            model = prune_snr(model, snr)
+            prev_snr = snr
+
         # forward pass
         output = model(inputs)
         loss = criterion(output, target)
