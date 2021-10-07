@@ -36,7 +36,7 @@ else:
 
 # Check if dataset is present
 
-dataset_path = "/home/ssadmin/GOLD_XYZ_OSC.0001_1024.hdf5"
+dataset_path = "/mnt/datasets/RadioML/2018.01/GOLD_XYZ_OSC.0001_1024.hdf5"
 os.path.isfile(dataset_path)
 
 
@@ -96,10 +96,10 @@ dataset = radioml_18_dataset(dataset_path)
 
 # Adjustable hyperparameters
 input_bits = 5
-a_bits = 5
-w_bits = 5
+a_bits = 5 
+w_bits = 5 
 filters_conv = 26
-filters_dense = 26
+filters_dense = 25
 
 # Setting seeds for reproducibility
 torch.manual_seed(0)
@@ -231,7 +231,7 @@ def display_loss_plot(losses, title="Training loss", xlabel="Iterations", ylabel
 
 
 batch_size = 2048
-num_epochs = 150
+num_epochs = 200 
 
 torch.backends.cudnn.benchmark = True
 torch.autograd.set_detect_anomaly(False)
@@ -260,35 +260,36 @@ lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_e
 running_loss = []
 running_test_acc = []
 switch_scheduler=False
-for epoch in tqdm(range(num_epochs), desc="Epochs"):
-        loss_epoch = train(model, data_loader_train, optimizer, criterion)
-        test_acc = test(model, data_loader_test)
-        print("Epoch %d: Training loss = %f, test accuracy = %f" % (epoch, np.mean(loss_epoch), test_acc))
+# for epoch in tqdm(range(num_epochs), desc="Epochs"):
+        # loss_epoch = train(model, data_loader_train, optimizer, criterion)
+        # test_acc = test(model, data_loader_test)
+        # print("Epoch %d: Training loss = %f, test accuracy = %f" % (epoch, np.mean(loss_epoch), test_acc))
         # print("Epoch %d: Training loss = %f" %(epoch, np.mean(loss_epoch)))
-        running_loss.append(loss_epoch)
-        running_test_acc.append(test_acc)
-        
-        if epoch > 100 or switch_scheduler:
-            switch_scheduler =True
-            swa_model.update_parameters(model)
-            swa_scheduler.step()
-        else:
-            lr_scheduler.step()
+        # running_loss.append(loss_epoch)
+        # running_test_acc.append(test_acc)
+        # if test_acc > 0.56:
+            # break
+        # if epoch > 100 or switch_scheduler:
+            # switch_scheduler =True
+            # swa_model.update_parameters(model)
+            # swa_scheduler.step()
+        # else:
+#            lr_scheduler.step()
 
-# test_acc = test(model, data_loader_test)
-# print("Epoch %d: Training loss = %f, test accuracy = %f" % (epoch, np.mean(loss_epoch), test_acc))
+#test_acc = test(model, data_loader_test)
+#print("Epoch %d: Training loss = %f, test accuracy = %f" % (epoch, np.mean(loss_epoch), test_acc))
 # Plot training loss over epochs
-loss_per_epoch = [np.mean(loss_per_epoch) for loss_per_epoch in running_loss]
-display_loss_plot(loss_per_epoch)
+# loss_per_epoch = [np.mean(loss_per_epoch) for loss_per_epoch in running_loss]
+# display_loss_plot(loss_per_epoch)
 
 
 # Plot test accuracy over epochs
-acc_per_epoch = [np.mean(acc_per_epoch) for acc_per_epoch in running_test_acc]
-display_loss_plot(acc_per_epoch, title="Test accuracy", ylabel="Accuracy [%]")
+# acc_per_epoch = [np.mean(acc_per_epoch) for acc_per_epoch in running_test_acc]
+# display_loss_plot(acc_per_epoch, title="Test accuracy", ylabel="Accuracy [%]")
 
 
 # Save the trained parameters to disk
-torch.save(model.state_dict(), "model_trained.pth")
+#torch.save(model.state_dict(), "model_trained.pth")
 
 
 # # Load a Trained Model <a id='load_trained_model'></a>
@@ -296,11 +297,11 @@ torch.save(model.state_dict(), "model_trained.pth")
 # It was trained for 20 epochs and reaches an overall accuracy of 59.5%.
 
 # Load trained parameters
-# savefile = "models/pretrained_VGG10_w8a8_20.pth"
-# saved_state = torch.load(savefile, map_location=torch.device("cpu"))
-# model.load_state_dict(saved_state)
-# if gpu is not None:
-#     model = model.cuda()
+savefile = "model_trained.pth"
+saved_state = torch.load(savefile, map_location=torch.device("cpu"))
+model.load_state_dict(saved_state)
+if gpu is not None:
+    model = model.cuda()
 
 
 # # Evaluate the Accuracy <a id='evaluate_accuracy'></a>
@@ -328,33 +329,33 @@ with torch.no_grad():
         y_snr = np.concatenate((y_snr,snr))
 
 
-# # Plot overall confusion matrix
-# def plot_confusion_matrix(cm, title='Confusion matrix', cmap=plt.cm.Blues, labels=[]):
-#     plt.imshow(cm, interpolation='nearest', cmap=cmap)
-#     plt.title(title)
-#     plt.colorbar()
-#     tick_marks = np.arange(len(labels))
-#     plt.xticks(tick_marks, labels, rotation=90)
-#     plt.yticks(tick_marks, labels)
-#     plt.tight_layout()
-#     plt.ylabel('True label')
-#     plt.xlabel('Predicted label')
+# Plot overall confusion matrix
+def plot_confusion_matrix(cm, title='Confusion matrix', cmap=plt.cm.Blues, labels=[]):
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title)
+    plt.colorbar()
+    tick_marks = np.arange(len(labels))
+    plt.xticks(tick_marks, labels, rotation=90)
+    plt.yticks(tick_marks, labels)
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
 
-# conf = np.zeros([len(dataset.mod_classes),len(dataset.mod_classes)])
-# confnorm = np.zeros([len(dataset.mod_classes),len(dataset.mod_classes)])
-# for i in range(len(y_exp)):
-#     j = int(y_exp[i])
-#     k = int(np.argmax(y_pred[i,:]))
-#     conf[j,k] = conf[j,k] + 1
-# for i in range(0,len(dataset.mod_classes)):
-#     confnorm[i,:] = conf[i,:] / np.sum(conf[i,:])
+conf = np.zeros([len(dataset.mod_classes),len(dataset.mod_classes)])
+confnorm = np.zeros([len(dataset.mod_classes),len(dataset.mod_classes)])
+for i in range(len(y_exp)):
+    j = int(y_exp[i])
+    k = int(np.argmax(y_pred[i,:]))
+    conf[j,k] = conf[j,k] + 1
+for i in range(0,len(dataset.mod_classes)):
+    confnorm[i,:] = conf[i,:] / np.sum(conf[i,:])
 
 # plt.figure(figsize=(12,8))
 # plot_confusion_matrix(confnorm, labels=dataset.mod_classes)
 
-# cor = np.sum(np.diag(conf))
-# ncor = np.sum(conf) - cor
-# print("Overall Accuracy across all SNRs: %f"%(cor / (cor+ncor)))
+cor = np.sum(np.diag(conf))
+ncor = np.sum(conf) - cor
+print("Overall Accuracy across all SNRs: %f"%(cor / (cor+ncor)))
 
 
 # # Plot confusion matrices at 4 different SNRs
@@ -434,11 +435,11 @@ with torch.no_grad():
 # # First, we have to export the model to Brevita's quantized variant of the ONNX interchange format. **All submissions must correctly pass through this export flow and provide the resulting .onnx file**. Any `TracerWarning` can be safely ignored.
 
 
-# export_onnx_path = "models/model_export.onnx"
-# final_onnx_path = "models/model_final.onnx"
-# cost_dict_path = "models/model_cost.json"
+export_onnx_path = "models/model_export.onnx"
+final_onnx_path = "models/model_final.onnx"
+cost_dict_path = "models/model_cost.json"
 
-# BrevitasONNXManager.export(model.cpu(), input_t=torch.randn(1, 2, 1024), export_path=export_onnx_path);
+BrevitasONNXManager.export(model.cpu(), input_t=torch.randn(1, 2, 1024), export_path=export_onnx_path);
 
 
 # # Now we use our analysis tool, which is part of [finn-base](https://github.com/Xilinx/finn-base), to determine the inference cost. It reports the number of output activation variables (`mem_o`), weight parameters (`mem_w`), and multiply-accumulate operations (`op_mac`) for each data type. These are used to calculate the total number of activation bits, weight bits, and bit-operations (BOPS).
@@ -448,11 +449,11 @@ with torch.no_grad():
 # # In[33]:
 
 
-# from finn.util.inference_cost import inference_cost
-# import json
+from finn.util.inference_cost import inference_cost
+import json
 
-# inference_cost(export_onnx_path, output_json=cost_dict_path, output_onnx=final_onnx_path,
-#                preprocess=True, discount_sparsity=True)
+inference_cost(export_onnx_path, output_json=cost_dict_path, output_onnx=final_onnx_path,
+               preprocess=True, discount_sparsity=True)
 
 
 # # The call to `??nference_cost()` cleans up the model by inferring shapes and datatypes, folding constants, etc. We visualize the pre-processed ONNX model using [Netron](https://netron.app/).
@@ -474,18 +475,15 @@ with torch.no_grad():
 # # Finally, we compute the inference cost score, normalized to the baseline 8-bit VGG10 defined in this notebook. **Submissions will be judged based on this score.**
 
 
-# with open(cost_dict_path, 'r') as f:
-#     inference_cost_dict = json.load(f)
+with open(cost_dict_path, 'r') as f:
+    inference_cost_dict = json.load(f)
 
-# bops = int(inference_cost_dict["total_bops"])
-# w_bits = int(inference_cost_dict["total_mem_w_bits"])
+bops = int(inference_cost_dict["total_bops"])
+w_bits = int(inference_cost_dict["total_mem_w_bits"])
 
-# bops_baseline = 807699904
-# w_bits_baseline = 1244936
+bops_baseline = 807699904
+w_bits_baseline = 1244936
 
-# score = 0.5*(bops/bops_baseline) + 0.5*(w_bits/w_bits_baseline)
-# print("Normalized inference cost score: %f" % score)
+score = 0.5*(bops/bops_baseline) + 0.5*(w_bits/w_bits_baseline)
+print("Normalized inference cost score: %f" % score)
 
-
-
-
